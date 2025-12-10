@@ -1,6 +1,13 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { ThemeProvider } from "next-themes";
+import QueryClientContextProvider from "@/providers/react-query.provider";
+import { NuqsAdapter } from "nuqs/adapters/next/app";
+
+import { Toaster as SonnerToaster } from "@/components/ui/sonner";
+
+import { Toaster as ShadcnUiToaster } from "@/components/ui/toaster";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -24,9 +31,26 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable}`}>
-        {children}
-      </body>
+      <ThemeProvider>
+        <body
+          className={`${geistSans.variable} ${geistMono.variable} antialiased bg-sidebar overflow-x-hidden`}
+        >
+          <QueryClientContextProvider>
+            <SonnerToaster
+              toastOptions={{}}
+              expand={false}
+              position="bottom-right"
+              closeButton
+              richColors
+              visibleToasts={4}
+              duration={8000}
+            />
+            {/** I added this toaster for class-validator errors */}
+            <ShadcnUiToaster />
+            <NuqsAdapter>{children}</NuqsAdapter>
+          </QueryClientContextProvider>
+        </body>
+      </ThemeProvider>
     </html>
   );
 }
