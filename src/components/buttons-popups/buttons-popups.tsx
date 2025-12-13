@@ -289,7 +289,7 @@ export interface IButtonPopoverProps {
     content: React.ReactNode;
   };
 }
-export function ButtonPopoverProps({
+export function ButtonPopover({
   actionStatus,
   buttonProps,
   popoverProps: { content },
