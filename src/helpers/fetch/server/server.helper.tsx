@@ -80,3 +80,13 @@ export function loadingToast({ message, buttonActionProps }: TLoadingToast) {
     className: "rounded-md",
   }) as number;
 }
+
+export function checkIfCashedData<T>(
+  queryClient: QueryClient,
+  modelNameAsPlural: string,
+  page: number
+) {
+  return queryClient.getQueryData<T[]>(
+    page !== 0 ? [modelNameAsPlural, page] : [modelNameAsPlural]
+  );
+}

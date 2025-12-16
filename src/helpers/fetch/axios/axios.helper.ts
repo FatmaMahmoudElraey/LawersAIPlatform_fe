@@ -1,0 +1,129 @@
+import axios from "axios";
+import {
+  Environment,
+  EnvironmentEnum,
+} from "../../constants/environment.constant";
+import { IEntityFilter, IReadDto } from "../../dtos/pagination.dto";
+import { LogicError } from "../../errors/exceptions/login.exception";
+import { responseErrorHandler, responseHandler } from "./axios.handler";
+import {
+  NodeConfig,
+  ServerConfig,
+} from "@/helpers/security/secrets/dotenv.secret";
+// import env from '@/security/secrets/env';
+// import { NodeConfig, ServerConfig } from '@/security/secrets/dotenv.secret';
+
+const BASE_URL =
+  NodeConfig.APP_ENV === EnvironmentEnum.Development
+    ? ServerConfig.LOCAL_BACKEND_URL
+    : ServerConfig.REMOTE_BACKEND_URL;
+
+export enum ContentType {
+  ApplicationJson = `application/json`,
+  XwwwFormUrlencoded = `application/x-www-form-urlencoded`,
+  FormData = `multipart/form-data`,
+}
+
+function filterToQueryParamConverter(mainPropName: string, filter: any) {
+  let stringAccumulator = "";
+  const properties = Object.keys(filter);
+  const values = Object.values(filter);
+
+  for (let i = 0; i < properties.length; i++) {
+    stringAccumulator += `${mainPropName}%5B${properties[i]}%5D=${values[i]}`;
+    if (i !== properties.length - 1) stringAccumulator += "&";
+  }
+}
+
+function orderAndPaginationQueryParamConverter(
+  mainPropName: string,
+  filter: any
+) {
+  let stringAccumulator = "";
+  const properties = Object.keys(filter);
+  const values = Object.values(filter);
+
+  for (let i = 0; i < properties.length; i++) {
+    stringAccumulator += `${mainPropName}%5B${properties[i]}%5D=${values[i]}`;
+    if (i !== properties.length - 1) stringAccumulator += "&";
+  }
+
+  return stringAccumulator;
+}
+
+export function paginationQueryParamsGenerator<TReadDto extends IReadDto>(
+  url: string,
+  paramsObject?: IEntityFilter<TReadDto>
+) {
+  let queryParameters = "";
+
+  if (paramsObject?.filter) {
+    const { ...restFilter } = paramsObject?.filter;
+
+    const filterQueryParam = filterToQueryParamConverter("filter", restFilter);
+
+    queryParameters += filterQueryParam + "&";
+  }
+  if (paramsObject?.pagination) {
+    const paginationQueryParam = orderAndPaginationQueryParamConverter(
+      "pagination",
+      paramsObject?.pagination
+    );
+    queryParameters += paginationQueryParam + "&";
+  }
+  if (paramsObject?.order) {
+    const orderQueryParam = orderAndPaginationQueryParamConverter(
+      "order",
+      paramsObject?.order
+    );
+    queryParameters += orderQueryParam + "&";
+  }
+
+  return url + "?" + queryParameters;
+}
+
+export function calculateOffset(page: number, limit: number) {
+  return page * limit - limit;
+}
+
+// export function queryParamsGenerator(url: string, paramsObject?: IQueryParams) {
+//   if (paramsObject?.selectFields && paramsObject.relationalFields)
+//     throw new LogicError(
+//       `You can't send relationFields and selectFields together`
+//     );
+
+//   let queryParameters = "";
+
+//   if (paramsObject?.mediaFilesFields) {
+//     const mediaFilesQueryParam = mediaFilesParamsConverter(
+//       paramsObject?.mediaFilesFields
+//     );
+//     queryParameters += "mediaFilesFields=" + mediaFilesQueryParam + "&";
+//   }
+//   if (paramsObject?.relationalFields) {
+//     queryParameters +=
+//       "relationalFields=" + paramsObject?.relationalFields + "&";
+//   }
+//   if (paramsObject?.selectFields) {
+//     queryParameters += "selectFields=" + paramsObject?.selectFields;
+//   }
+
+//   return url + "?" + queryParameters;
+// }
+
+export function AxiosInstance(contentType: ContentType, apiVersion: number) {
+  const instance = axios.create({
+    baseURL: `${BASE_URL}/v${apiVersion}`,
+  });
+
+  instance.defaults.headers.post["Content-Type"] = contentType;
+  instance.defaults.headers["Cache-Control"] =
+    "no-cache, no-store, must-revalidate";
+  instance.defaults.headers["Pragma"] = "no-cache";
+  instance.defaults.headers["Expires"] = "0";
+  instance.defaults.timeout = 10 * 1000;
+
+  instance.interceptors.response.use(responseHandler, responseErrorHandler);
+
+  return instance;
+}

@@ -6,7 +6,7 @@ export const paginationDefaultValues = {
 export const limitDefaultValues = [10, 20, 30, 40, 50] as const;
 
 export interface IPaginationParams {
-  offset: number;
+  page: number;
   limit: number;
 }
 
@@ -21,4 +21,8 @@ export interface IEntityFilter<TReadDto> {
   filter?: TReadDto;
   pagination: IPaginationParams;
   order?: IOrderParams;
+}
+
+export interface IReadDto {
+  isDeleted?: boolean;
 }
