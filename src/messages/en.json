@@ -1,0 +1,14 @@
+{
+  "nav": {
+    "home": "Home",
+    "about": "About",
+    "services": "Services",
+    "contact": "Contact",
+    "language": "Language",
+    "switchTo": "Switch to"
+  },
+  "common": {
+    "welcome": "Welcome to our platform",
+    "dashboard": "Dashboard"
+  }
+}

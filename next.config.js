@@ -3,15 +3,9 @@
 const nextConfig = {
   // Your configuration here
   reactStrictMode: true,
-    i18n: {
-    locales: ['en', 'ar'],
-    defaultLocale: 'en',
-    localeDetection: true,
-  },
+  
   // If you were using TypeScript-specific features, convert them:
   // Remove TypeScript-only syntax
 }
 
 module.exports = nextConfig;
-
-
