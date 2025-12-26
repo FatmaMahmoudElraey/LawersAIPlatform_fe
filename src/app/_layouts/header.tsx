@@ -13,6 +13,7 @@ import {
 import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import {
   AppLangEnum,
+  AppLangShortcutEnum,
   AppThemeEnum,
 } from "@/helpers/constants/settings.contants";
 import {
@@ -26,6 +27,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import React, { Fragment, useEffect, useState } from "react";
+import { useSettingsStore } from "@/stores/settings.store";
 
 interface IHeader {
   routesToIgnore?: string[];
@@ -37,9 +39,7 @@ function Header({
   toggleSidebar: toggleShowingAppName,
 }: IHeader) {
   const { setTheme: setNextTheme } = useTheme();
-
-  const [lang, setLang] = useState<string>();
-  const [theme, setTheme] = useState<string>();
+  const { lang, langShortcut, theme, setLang, setTheme } = useSettingsStore();
 
   // useEffect(() => {
   //   if (lang || theme) {
@@ -121,8 +121,15 @@ function Header({
       >
         <Select
           key="lang"
-          onValueChange={(val) => setLang(val)}
-          // setValue={setLang}
+          label="Language"
+          onValueChange={(val) => {
+            const selectedLang = val as unknown as AppLangEnum;
+            const shortcut =
+              selectedLang === AppLangEnum.Arabic
+                ? AppLangShortcutEnum.ar
+                : AppLangShortcutEnum.en;
+            setLang(selectedLang, shortcut);
+          }}
           value={lang}
           placeholder="Select Language"
           defaultValue={AppLangEnum.English.toString()}
@@ -137,9 +144,9 @@ function Header({
         />
         <Select
           key="theme"
-          // setValue={setTheme}
+          label="Theme"
           onValueChange={(val) => {
-            setTheme(val);
+            setTheme(val as AppThemeEnum);
             setNextTheme(val);
           }}
           value={theme}
