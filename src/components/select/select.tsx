@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import React, { Dispatch, SetStateAction, useState } from 'react';
+import React, { Dispatch, SetStateAction, useState } from "react";
 import {
   Select as SelectComp,
   SelectContent,
@@ -9,11 +9,11 @@ import {
   SelectLabel,
   SelectTrigger,
   SelectValue,
-} from '../ui/select';
-import { Spinner } from '../ui/spinner';
-import { LabelLocated } from '../shared/input';
-import { cn } from '@/lib/utils';
-import { Label } from '../ui/label';
+} from "../ui/select";
+import { Spinner } from "../ui/spinner";
+import { LabelLocated } from "../shared/input";
+import { cn } from "@/lib/utils";
+import { Label } from "../ui/label";
 
 export interface ISelectItem {
   content: any;
@@ -30,8 +30,9 @@ export interface ISelectProps {
   groups: ISelectGroup[];
   value: string | undefined;
   isLoading?: boolean;
-  label: string;
+  label?: string;
   labelLocated?: LabelLocated;
+  disabled: boolean;
   onValueChange: (value: string) => void;
 }
 export function Select({
@@ -43,7 +44,8 @@ export function Select({
   value,
   isLoading = false,
   label,
-  labelLocated = 'above',
+  disabled,
+  labelLocated = "above",
 }: ISelectProps) {
   const defaultSelectValue = defaultValue ? { defaultValue } : {};
   const selectWidth = width ? { style: { width } } : {};
@@ -51,23 +53,24 @@ export function Select({
   return (
     <div
       className={cn(
-        'flex relative w-fit',
-        labelLocated === 'aside'
-          ? 'flex-row gap-1 items-center'
-          : 'flex-col gap-1',
+        "flex relative w-fit",
+        labelLocated === "aside"
+          ? "flex-row gap-1 items-center"
+          : "flex-col gap-1"
       )}
     >
       <div className="flex flex-row gap-3">
-        <Label>{label}</Label>
+        {label && <Label>{label}</Label>}
 
         {isLoading && (
           <Spinner
             // className="absolute top-[50%] left-[50%] translate-x-[-50%] translate-y-[-50%]"
-            size={'extraSmall'}
+            size={"extraSmall"}
           />
         )}
       </div>
       <SelectComp
+        disabled={disabled}
         onValueChange={onValueChange}
         value={value}
         {...defaultSelectValue}
