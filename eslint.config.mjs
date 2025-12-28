@@ -18,6 +18,26 @@ const eslintConfig = defineConfig([
       "react-hooks/immutability": "off",
       "@typescript-eslint/no-explicit-any": "off",
       "react/display-name": "off",
+      "no-redirected-imports": [
+        "error",
+        {
+          name: "next/link",
+          message: "Please import from `@navigation` instead",
+          importNames: ["default"],
+        },
+        {
+          name: "next/navigation",
+          message: "Please import from `@navigation` instead",
+          importNames: [
+            "Link",
+            "getPathname",
+            "permanentRedirect",
+            "redirect",
+            "usePathname",
+            "useRouter",
+          ],
+        },
+      ],
     },
   },
 ]);
