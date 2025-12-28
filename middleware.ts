@@ -1,12 +1,13 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import createMiddleware from "next-intl/middleware";
+import { AppLangShortcuts } from "@/helpers/constants/settings.contants";
 
 // ------------------------------
 // 1) Internationalization (i18n)
 // ------------------------------
 const intlMiddleware = createMiddleware({
-  locales: ["en", "ar"],
+  locales: AppLangShortcuts,
   defaultLocale: "en",
 });
 
@@ -15,11 +16,25 @@ const intlMiddleware = createMiddleware({
 // ------------------------------
 const roleRouteMap: Record<string, string[]> = {
   student: ["/student", "/library", "/assistant"],
-  lawyer: ["/lawyer", "/library", "/case-analysis", "/ocr", "/contracts", "/assistant"],
-  firm: ["/firm", "/library", "/case-analysis", "/ocr", "/contracts", "/assistant"],
+  lawyer: [
+    "/lawyer",
+    "/library",
+    "/case-analysis",
+    "/ocr",
+    "/contracts",
+    "/assistant",
+  ],
+  firm: [
+    "/firm",
+    "/library",
+    "/case-analysis",
+    "/ocr",
+    "/contracts",
+    "/assistant",
+  ],
 };
 
-export function middleware(req: NextRequest) {
+export default function middleware(req: NextRequest) {
   // Run next-intl first (normalizes the URL to include locale)
   const intlResponse = intlMiddleware(req);
   if (intlResponse) return intlResponse; // if locale redirect happened, stop here
@@ -39,7 +54,9 @@ export function middleware(req: NextRequest) {
   // Authentication + Role Check
   // ------------------------------
   const token = req.cookies.get("token")?.value;
-  const role = req.cookies.get("role")?.value as keyof typeof roleRouteMap | undefined;
+  const role = req.cookies.get("role")?.value as
+    | keyof typeof roleRouteMap
+    | undefined;
 
   if (!token || !role) {
     const url = req.nextUrl.clone();
@@ -48,7 +65,9 @@ export function middleware(req: NextRequest) {
   }
 
   const allowedPaths = roleRouteMap[role] ?? [];
-  const isAllowed = allowedPaths.some((prefix) => pathWithoutLocale.startsWith(prefix));
+  const isAllowed = allowedPaths.some((prefix) =>
+    pathWithoutLocale.startsWith(prefix)
+  );
 
   if (!isAllowed) {
     const url = req.nextUrl.clone();
@@ -64,8 +83,8 @@ export function middleware(req: NextRequest) {
 // ------------------------------
 export const config = {
   matcher: [
-    "/",                    // root → intl
-    "/(en|ar)/:path*",      // localized pages → intl + auth
-    "/(student|lawyer|firm|library|case-analysis|ocr|contracts|assistant)/:path*",  
+    "/", // root → intl
+    "/(en|ar)/:path*", // localized pages → intl + auth
+    "/(student|lawyer|firm|library|case-analysis|ocr|contracts|assistant)/:path*",
   ],
 };
