@@ -12,9 +12,9 @@ import { Toaster as ShadcnUiToaster } from "@/components/ui/toaster";
 
 const inter = Inter({ subsets: ["latin"] });
 
-export const metadata: Metadata = {
+export const metadata: Metadata =  {
   title: "Lawyer AI Platform",
-  description: "AI-powered legal platform",
+  description: "AI-powered legal platform", 
 };
 
 export default async function LocaleLayout({

@@ -20,6 +20,8 @@ interface MobileMenuProps {
   lang: string;
   isAuthenticated: boolean;
   onLanguageToggle: () => void;
+  user?: { name?: string; avatar?: string };
+  onLogout?: () => void;
 }
 
 export default function MobileMenu({ lang, isAuthenticated, onLanguageToggle }: MobileMenuProps) {
@@ -90,20 +92,41 @@ export default function MobileMenu({ lang, isAuthenticated, onLanguageToggle }: 
                 ))}
               </div>
 
-              {/* Auth Buttons */}
+              {/* Auth Buttons/User Info */}
               <div className="mt-6 space-y-3">
-                <Button asChild className="w-full" variant="ghost">
-                  <Link href="/login" className="flex items-center gap-2" onClick={() => setIsOpen(false)}>
-                    <LogIn className="h-4 w-4" />
-                    Sign In
-                  </Link>
-                </Button>
-                <Button asChild className="w-full">
-                  <Link href="/register" className="flex items-center gap-2" onClick={() => setIsOpen(false)}>
-                    <UserPlus className="h-4 w-4" />
-                    Get Started
-                  </Link>
-                </Button>
+                {!isAuthenticated ? (
+                  <>
+                    <Button asChild className="w-full" variant="ghost">
+                      <Link href="/login" className="flex items-center gap-2" onClick={() => setIsOpen(false)}>
+                        <LogIn className="h-4 w-4" />
+                        Sign In
+                      </Link>
+                    </Button>
+                    <Button asChild className="w-full">
+                      <Link href="/register" className="flex items-center gap-2" onClick={() => setIsOpen(false)}>
+                        <UserPlus className="h-4 w-4" />
+                        Get Started
+                      </Link>
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-2 p-3 border rounded-lg bg-muted">
+                      {user?.avatar ? (
+                        <img className="w-8 h-8 rounded-full" src={user?.avatar} alt={user?.name} />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center bg-emerald-600 text-white font-bold">{user?.name?.[0]?.toUpperCase() || '?'}</div>
+                      )}
+                      <span className="font-medium text-slate-800">{user?.name}</span>
+                    </div>
+                    <Button className="w-full" variant="ghost" onClick={() => {
+                      onLogout && onLogout();
+                      setIsOpen(false);
+                    }}>
+                      Logout
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
           </div>
