@@ -1,8 +1,140 @@
 // src/app/signup/page.tsx
+"use client";
+
+import * as React from "react";
 import Link from "next/link";
-import { User, Mail, Lock, Check, ArrowRight } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { User, Mail, Lock, ArrowRight, Eye, EyeOff } from "lucide-react";
+import { useAuthStore } from "@/stores/auth.store";
+import { LocalStorageKeys } from '@/helpers/constants/local-storage.constant';
+
+const signUpSchema = z.object({
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  email: z.string().email("Please enter a valid email address"),
+  password: z.string().min(4, "Password must be at least 6 characters"),
+  confirmPassword: z.string().min(4, "Please confirm your password"),
+  languagePreference: z.enum(["en", "ar"]),
+  terms: z.boolean().refine((val) => val === true, {
+    message: "You must agree to the terms and conditions",
+  }),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords do not match",
+  path: ["confirmPassword"],
+});
+
+type SignUpFormValues = z.infer<typeof signUpSchema>;
 
 export default function SignUpPage() {
+  const router = useRouter();
+  const [serverError, setServerError] = React.useState<string | null>(null);
+  const [showPassword, setShowPassword] = React.useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = React.useState(false);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<SignUpFormValues>({
+    resolver: zodResolver(signUpSchema),
+    defaultValues: {
+      name: "",
+      email: "",
+      password: "",
+      confirmPassword: "",
+      languagePreference: "en",
+      terms: false,
+    },
+  });
+
+  const onSubmit = handleSubmit(async (values) => {
+    setServerError(null);
+    setIsSubmitting(true);
+
+    try {
+      const { confirmPassword, terms, ...registrationData } = values;
+
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ...registrationData,
+          role: "Student", // Backend expects capitalized role value
+        }),
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        const message =
+          data && typeof data.message === "string"
+            ? data.message
+            : Array.isArray(data?.message)
+            ? data.message.join("\n")
+            : "Registration failed. Please try again.";
+
+        setServerError(message);
+        reset({ ...values, password: "", confirmPassword: "" });
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Registration successful - auto-login the user
+      const userData = data.data;
+      const accessToken = data.accessToken;
+      const refreshToken = data.refreshToken;
+      
+      const user = {
+        id: String(userData.id),
+        name: userData.name,
+        email: userData.email,
+        avatar: userData.avatar,
+        role: typeof userData.role === 'string' ? userData.role.toLowerCase() : userData.role,
+        jobTitle: userData.jobTitle,
+        languagePreference: userData.languagePreference,
+      };
+      
+      // Store auth state
+      useAuthStore.getState().setAuth({
+        isAuthenticated: true,
+        role: user.role,
+        token: accessToken,
+        user,
+      });
+      
+      // Persist to localStorage
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(LocalStorageKeys.UserAuth, JSON.stringify({
+          isAuthenticated: true,
+          role: user.role,
+          token: accessToken,
+          user,
+          refreshToken,
+        }));
+      }
+      
+      reset();
+      
+      // Redirect to appropriate dashboard based on role
+      if (user.role === "student") {
+        router.replace("/student");
+      } else if (user.role === "lawyer") {
+        router.replace("/lawyer");
+      } else {
+        router.replace("/");
+      }
+    } catch (error) {
+      setServerError("Something went wrong. Please try again.");
+      setIsSubmitting(false);
+    }
+  });
+
   return (
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: "#F6F8F7" }}>
       {/* Header */}
@@ -10,10 +142,10 @@ export default function SignUpPage() {
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           <div className="flex items-center">
             <div className="h-8 w-8 rounded-full bg-emerald-500 flex items-center justify-center mr-3">
-              <svg 
-                className="h-5 w-5 text-white" 
-                fill="none" 
-                stroke="currentColor" 
+              <svg
+                className="h-5 w-5 text-white"
+                fill="none"
+                stroke="currentColor"
                 viewBox="0 0 24 24"
               >
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
@@ -44,7 +176,7 @@ export default function SignUpPage() {
           </p>
 
           {/* Form */}
-          <form className="space-y-6">
+          <form className="space-y-6" onSubmit={onSubmit} noValidate>
             {/* Full Name */}
             <div>
               <label className="block text-sm font-medium text-slate-900 mb-3">
@@ -57,9 +189,14 @@ export default function SignUpPage() {
                 <input
                   type="text"
                   placeholder="John Doe"
-                  className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-200 bg-slate-50 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none"
+                  autoComplete="name"
+                  className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-200 bg-slate-100 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none"
+                  {...register("name")}
                 />
               </div>
+              {errors.name && (
+                <p className="mt-2 text-sm text-red-600">{errors.name.message}</p>
+              )}
             </div>
 
             {/* Email */}
@@ -74,9 +211,14 @@ export default function SignUpPage() {
                 <input
                   type="email"
                   placeholder="name@company.com"
-                  className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-200 bg-slate-50 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none"
+                  autoComplete="email"
+                  className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-200 bg-slate-100 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none"
+                  {...register("email")}
                 />
               </div>
+              {errors.email && (
+                <p className="mt-2 text-sm text-red-600">{errors.email.message}</p>
+              )}
             </div>
 
             {/* Password */}
@@ -89,11 +231,27 @@ export default function SignUpPage() {
                   <Lock className="h-5 w-5 text-slate-400" />
                 </div>
                 <input
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   placeholder="········"
-                  className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-200 bg-slate-50 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none"
+                  autoComplete="new-password"
+                  className="w-full pl-10 pr-10 py-3 rounded-lg border border-slate-200 bg-slate-100 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none"
+                  {...register("password")}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-5 w-5 text-slate-400" />
+                  ) : (
+                    <Eye className="h-5 w-5 text-slate-400" />
+                  )}
+                </button>
               </div>
+              {errors.password && (
+                <p className="mt-2 text-sm text-red-600">{errors.password.message}</p>
+              )}
             </div>
 
             {/* Confirm Password */}
@@ -106,19 +264,53 @@ export default function SignUpPage() {
                   <Lock className="h-5 w-5 text-slate-400" />
                 </div>
                 <input
-                  type="password"
+                  type={showConfirmPassword ? "text" : "password"}
                   placeholder="········"
-                  className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-200 bg-slate-50 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none"
+                  autoComplete="new-password"
+                  className="w-full pl-10 pr-10 py-3 rounded-lg border border-slate-200 bg-slate-100 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none"
+                  {...register("confirmPassword")}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                >
+                  {showConfirmPassword ? (
+                    <EyeOff className="h-5 w-5 text-slate-400" />
+                  ) : (
+                    <Eye className="h-5 w-5 text-slate-400" />
+                  )}
+                </button>
               </div>
+              {errors.confirmPassword && (
+                <p className="mt-2 text-sm text-red-600">{errors.confirmPassword.message}</p>
+              )}
+            </div>
+
+            {/* Language Preference */}
+            <div>
+              <label className="block text-sm font-medium text-slate-900 mb-3">
+                Language Preference
+              </label>
+              <select
+                className="w-full px-4 py-3 rounded-lg border border-slate-200 bg-slate-100 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none"
+                {...register("languagePreference")}
+              >
+                <option value="en">English</option>
+                <option value="ar">العربية (Arabic)</option>
+              </select>
+              {errors.languagePreference && (
+                <p className="mt-2 text-sm text-red-600">{errors.languagePreference.message}</p>
+              )}
             </div>
 
             {/* Terms Checkbox */}
-            <div className="flex items-center">
+            <div className="flex items-start">
               <input
                 type="checkbox"
                 id="terms"
-                className="h-4 w-4 text-emerald-600 focus:ring-emerald-500 border-slate-300 rounded"
+                className="h-4 w-4 text-emerald-600 focus:ring-emerald-500 border-slate-300 rounded mt-1"
+                {...register("terms")}
               />
               <label htmlFor="terms" className="ml-2 text-sm text-slate-600">
                 I agree to the{" "}
@@ -131,13 +323,24 @@ export default function SignUpPage() {
                 </Link>
               </label>
             </div>
+            {errors.terms && (
+              <p className="text-sm text-red-600">{errors.terms.message}</p>
+            )}
+
+            {/* Server error message */}
+            {serverError && (
+              <div className="rounded-lg bg-red-50 p-4">
+                <p className="text-sm text-red-600">{serverError}</p>
+              </div>
+            )}
 
             {/* Submit Button */}
             <button
               type="submit"
-              className="w-full rounded-lg bg-emerald-500 py-3 px-4 text-sm font-semibold text-white hover:bg-emerald-600 transition-colors flex items-center justify-center"
+              disabled={isSubmitting}
+              className="w-full rounded-lg bg-emerald-500 py-3 px-4 text-sm font-semibold text-white hover:bg-emerald-600 transition-colors flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              Create Account
+              {isSubmitting ? "Creating account..." : "Create Account"}
               <ArrowRight className="ml-2 h-4 w-4" />
             </button>
 
@@ -162,7 +365,7 @@ export default function SignUpPage() {
             </div>
 
             {/* Social Buttons */}
-            <div className="grid grid-cols-2 gap-4">
+            {/* <div className="grid grid-cols-2 gap-4">
               <button
                 type="button"
                 className="py-3 px-4 border border-slate-200 rounded-lg text-sm text-slate-700 font-medium hover:bg-slate-50 transition-colors"
@@ -175,7 +378,7 @@ export default function SignUpPage() {
               >
                 Github
               </button>
-            </div>
+            </div> */}
           </form>
         </div>
         {/* Security pill under card */}
@@ -195,7 +398,7 @@ export default function SignUpPage() {
             <Link href="#" className="hover:text-emerald-600">Terms of Service</Link>
             <Link href="#" className="hover:text-emerald-600">Help Center</Link>
           </div>
-          <p className="text-xs text-slate-400"> 2023 LegalAI Inc. All rights reserved.</p>
+          <p className="text-xs text-slate-400">© 2023 LegalAI Inc. All rights reserved.</p>
         </div>
       </footer>
     </div>

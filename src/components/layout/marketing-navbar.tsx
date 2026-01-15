@@ -8,16 +8,29 @@ import { useSettingsStore } from "@/stores/settings.store";
 import MobileMenu from "./mobile-menu";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
+import { useAuthStore } from '@/stores/auth.store';
+import { LocalStorageKeys } from '@/helpers/constants/local-storage.constant';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 
 export default function MarketingNavbar() {
   const router = useRouter();
   const { lang, langShortcut, toggleLanguage } = useSettingsStore();
   const [isClient, setIsClient] = useState(false);
+  const { isAuthenticated, user, logout, setAuth } = useAuthStore();
 
-  // Ensure this only runs on client
+  // Hydrate auth state from localStorage on mount
   useEffect(() => {
     setIsClient(true);
-  }, []);
+    if (typeof window !== 'undefined') {
+      const data = window.localStorage.getItem(LocalStorageKeys.UserAuth);
+      if (data) {
+        try {
+          const auth = JSON.parse(data);
+          setAuth(auth);
+        } catch {}
+      }
+    }
+  }, [setAuth]);
 
   const handleLanguageToggle = () => {
     toggleLanguage();
@@ -94,24 +107,45 @@ export default function MarketingNavbar() {
             )}
 
             <div className="hidden items-center gap-3 md:flex">
-              <Button asChild variant="ghost" size="sm" className="px-2">
-                <Link href="/login">Sign in</Link>
-              </Button>
-              <Button
-                asChild
-                size="sm"
-                className="h-9 rounded-full bg-emerald-500 px-4 text-xs font-semibold text-white hover:bg-emerald-600"
-              >
-                <Link href="/register">Start Free Trial</Link>
-              </Button>
+              {!isAuthenticated ? (
+                <>
+                  <Button asChild variant="ghost" size="sm" className="px-2">
+                    <Link href="/login">Sign in</Link>
+                  </Button>
+                  <Button
+                    asChild
+                    size="sm"
+                    className="h-9 rounded-full bg-emerald-500 px-4 text-xs font-semibold text-white hover:bg-emerald-600"
+                  >
+                    <Link href="/register">Start Free Trial</Link>
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center gap-2">
+                    <Avatar>
+                      {user && user.avatar ? (
+                        <AvatarImage src={user.avatar} alt={user.name} />
+                      ) : (
+                        <AvatarFallback>{user?.name?.[0]?.toUpperCase() || '?'}</AvatarFallback>
+                      )}
+                    </Avatar>
+                    <span className="font-medium text-slate-800 dark:text-slate-100">
+                      {user?.name}
+                    </span>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={logout}>Logout</Button>
+                </>
+              )}
             </div>
-
             {/* Mobile menu (icon only on small screens) */}
             <div className="md:hidden">
               <MobileMenu
                 lang={isClient ? langShortcut : "en"}
-                isAuthenticated={false}
+                isAuthenticated={isAuthenticated}
                 onLanguageToggle={handleLanguageToggle}
+                user={user}
+                onLogout={logout}
               />
             </div>
           </div>

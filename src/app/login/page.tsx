@@ -1,8 +1,127 @@
 // src/app/login/page.tsx
+"use client";
+
+import * as React from "react";
 import Link from "next/link";
-import { Mail, Lock, ArrowRight, Eye } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Mail, Lock, ArrowRight, Eye, CheckCircle } from "lucide-react";
+import { useAuthStore } from "@/stores/auth.store";
+import { LocalStorageKeys } from '@/helpers/constants/local-storage.constant';
+
+const signInSchema = z.object({
+  email: z.string().email("Please enter a valid email address"),
+  password: z.string().min(4, "Password must be at least 4 characters"),
+  keepMeSignedIn: z.boolean().optional().default(false),
+});
+
+type SignInFormValues = z.infer<typeof signInSchema>;
+
+function useAuthLocalStorage() {
+  const saveAuth = React.useCallback((data: unknown, persist: boolean) => {
+    if (!persist || typeof window === "undefined") return;
+
+    try {
+      window.localStorage.setItem("auth", JSON.stringify(data));
+    } catch {
+      // Swallow storage errors; auth is still in memory via the page state
+    }
+  }, []);
+
+  return { saveAuth };
+}
 
 export default function LoginPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { saveAuth } = useAuthLocalStorage();
+  const [serverError, setServerError] = React.useState<string | null>(null);
+  const isRegistered = searchParams.get("registered") === "true";
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm({
+    resolver: zodResolver(signInSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+      keepMeSignedIn: false,
+    },
+  });
+
+  const onSubmit = handleSubmit(async (values) => {
+    setServerError(null);
+
+    try {
+      const { keepMeSignedIn, ...credentials } = values;
+
+      const response = await fetch("/api/auth/sign-in", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ...credentials,
+          role: "Student"
+        }),
+      });
+
+      const data = await response.json().catch(() => null);
+      console.log("Full API response:", data); // Add this line
+
+      if (!response.ok) {
+        const message =
+          data && typeof data.message === "string"
+            ? data.message
+            : Array.isArray(data?.message)
+            ? data.message.join("\n")
+            : "Sign in failed";
+
+        setServerError(message);
+        reset({ ...values, password: "" });
+        return;
+      }
+      // Adapt structure to your real response
+      const userData = data.data;
+      const accessToken = data.accessToken;
+      const refreshToken = data.refreshToken;
+      const user = {
+        id: userData.id,
+        name: userData.name,
+        email: userData.email,
+        avatar: userData.avatar,
+        role: userData.role ? userData.role.toLowerCase() : 'student', // Default to 'student' or appropriate default        jobTitle: userData.jobTitle,
+        languagePreference: userData.languagePreference,
+      };
+      useAuthStore.getState().setAuth({
+        isAuthenticated: true,
+        role: user.role,
+        token: accessToken,
+        user,
+      });
+      
+      // Always store to localStorage for persistence
+      window.localStorage.setItem(LocalStorageKeys.UserAuth, JSON.stringify({
+        isAuthenticated: true,
+        role: user.role,
+        token: accessToken,
+        user,
+        refreshToken,
+      }));
+      
+      saveAuth(data, keepMeSignedIn ?? false);
+      reset();
+      router.replace("/");
+    } catch (error) {
+      setServerError("Something went wrong. Please try again.");
+    }
+  });
+
   return (
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: "#F6F8F7" }}>
       {/* Header */}
@@ -44,8 +163,7 @@ export default function LoginPage() {
           </p>
 
           {/* Form */}
-          <form className="space-y-6">
-
+          <form className="space-y-6" onSubmit={onSubmit} noValidate>
             {/* Email */}
             <div>
               <label className="block text-sm font-medium text-slate-900 mb-3">
@@ -58,10 +176,14 @@ export default function LoginPage() {
                 <input
                   type="email"
                   placeholder="name@company.com"
-                  className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-200 bg-slate-50 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none"
+                  autoComplete="email"
+                  className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-200 bg-slate-100 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none"
+                  {...register("email")}
                 />
-
               </div>
+              {errors.email && (
+                <p className="mt-2 text-sm text-red-600">{errors.email.message}</p>
+              )}
             </div>
 
             {/* Password */}
@@ -81,13 +203,48 @@ export default function LoginPage() {
                 <input
                   type="password"
                   placeholder="········"
-                  className="w-full pl-10 pr-12 py-3 rounded-lg border border-slate-200 bg-slate-50 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none"
+                  autoComplete="current-password"
+                  className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-200 bg-slate-100 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none"
+                  {...register("password")}
                 />
                 <button type="button" className="absolute inset-y-0 right-0 pr-3 flex items-center">
                   <Eye className="h-5 w-5 text-slate-400" />
                 </button>
               </div>
+              {errors.password && (
+                <p className="mt-2 text-sm text-red-600">{errors.password.message}</p>
+              )}
             </div>
+
+            {/* Keep me signed in checkbox */}
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="keepMeSignedIn"
+                className="h-4 w-4 text-emerald-600 focus:ring-emerald-500 border-slate-300 rounded"
+                {...register("keepMeSignedIn")}
+              />
+              <label htmlFor="keepMeSignedIn" className="ml-2 text-sm text-slate-600">
+                Keep me signed in
+              </label>
+            </div>
+
+            {/* Success message after registration */}
+            {isRegistered && (
+              <div className="rounded-lg bg-emerald-50 p-4 flex items-center gap-2">
+                <CheckCircle className="h-5 w-5 text-emerald-600" />
+                <p className="text-sm text-emerald-600">
+                  Account created successfully! Please sign in with your credentials.
+                </p>
+              </div>
+            )}
+
+            {/* Server error message */}
+            {serverError && (
+              <div className="rounded-lg bg-red-50 p-4">
+                <p className="text-sm text-red-600">{serverError}</p>
+              </div>
+            )}
 
             {/* Divider */}
             <div className="relative">
@@ -99,9 +256,10 @@ export default function LoginPage() {
             {/* Submit Button */}
             <button
               type="submit"
-              className="w-full rounded-lg bg-emerald-500 py-3 px-4 text-sm font-semibold text-white hover:bg-emerald-600 transition-colors flex items-center justify-center"
+              disabled={isSubmitting}
+              className="w-full rounded-lg bg-emerald-500 py-3 px-4 text-sm font-semibold text-white hover:bg-emerald-600 transition-colors flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              Login
+              {isSubmitting ? "Logging in..." : "Login"}
               <ArrowRight className="ml-2 h-4 w-4" />
             </button>
 
@@ -116,7 +274,7 @@ export default function LoginPage() {
             </div>
 
             {/* Divider with text */}
-            <div className="relative">
+            <div className="relative"> 
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-slate-200"></div>
               </div>
@@ -126,7 +284,7 @@ export default function LoginPage() {
             </div>
 
             {/* Social Buttons */}
-            <div className="grid grid-cols-2 gap-4">
+            {/* <div className="grid grid-cols-2 gap-4">
               <button
                 type="button"
                 className="py-3 px-4 border border-slate-200 rounded-lg text-sm text-slate-700 font-medium hover:bg-slate-50 transition-colors"
@@ -140,7 +298,7 @@ export default function LoginPage() {
               >
                 Github
               </button>
-            </div>
+            </div> */}
           </form>
         </div>
         {/* Security pill under card */}
@@ -160,7 +318,7 @@ export default function LoginPage() {
             <Link href="#" className="hover:text-emerald-600">Terms of Service</Link>
             <Link href="#" className="hover:text-emerald-600">Help Center</Link>
           </div>
-          <p className="text-xs text-slate-400"> 2023 LegalAI Inc. All rights reserved.</p>
+          <p className="text-xs text-slate-400">© 2023 LegalAI Inc. All rights reserved.</p>
         </div>
       </footer>
     </div>

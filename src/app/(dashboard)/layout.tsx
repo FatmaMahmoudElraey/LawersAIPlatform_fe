@@ -2,7 +2,7 @@
 
 import type { Metadata } from "next";
 import { redirect, useSelectedLayoutSegment } from "next/navigation";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import AppSidebar, {
   IAppSidebarCollapsedGroupItemsProps,
@@ -17,7 +17,7 @@ import {
   ShieldHalf,
   Users2,
 } from "lucide-react";
-import KhoshnawLogo from "@/assets/images/KHOSHN    AW_LOGO.png";
+import KhoshnawLogo from "@/assets/images/LegalAI_LOGO.png";
 import { useEffect, useState } from "react";
 import Header from "../_layouts/header";
 
@@ -32,9 +32,17 @@ export default function DashboardRootLayout({
   children: React.ReactNode;
 }>) {
   const [hideAppName, setHideAppName] = useState<boolean>(false);
+  const pathname = usePathname();
+  const isStudentPage = pathname?.includes('/student');
+  
   const toggleSidebar = () => {
     setHideAppName(!hideAppName);
   };
+
+  // For student page, render without sidebar/header (it has its own navbar)
+  if (isStudentPage) {
+    return <>{children}</>;
+  }
 
   return (
     <SidebarProvider>

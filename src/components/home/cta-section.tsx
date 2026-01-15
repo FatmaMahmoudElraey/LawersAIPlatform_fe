@@ -12,11 +12,11 @@ export default function CTASection() {
               <h2 className="text-2xl sm:text-3xl font-bold text-white mb-6">
                 Ready to transform your practice?
               </h2>
-              
+
               <p className="text-lg text-slate-300 mb-8 max-w-lg">
                 Join thousands of legal professionals who are saving time and winning more cases with LegalAI.
               </p>
-              
+
               {/* Features - Left Aligned */}
               <div className="space-y-3">
                 <div className="flex items-center">
@@ -37,10 +37,10 @@ export default function CTASection() {
                 <button className="w-full px-8 py-4 bg-emerald-500 text-white font-semibold rounded-xl hover:bg-emerald-600 transition-colors text-lg shadow-lg hover:shadow-xl">
                   Start Free Trial
                 </button>
-                
-              <button className="w-full px-8 py-4 bg-transparent text-white font-semibold rounded-xl hover:bg-white/10 transition-colors text-lg border border-white/30 hover:border-white/50">
-  Schedule Demo
-</button>
+
+                <button className="w-full px-8 py-4 bg-transparent text-white font-semibold rounded-xl hover:bg-white/10 transition-colors text-lg border border-white/30 hover:border-white/50">
+                  Schedule Demo
+                </button>
               </div>
             </div>
           </div>
