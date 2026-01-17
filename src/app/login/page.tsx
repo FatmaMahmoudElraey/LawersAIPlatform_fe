@@ -94,8 +94,9 @@ export default function LoginPage() {
         id: userData.id,
         name: userData.name,
         email: userData.email,
-        avatar: userData.avatar,
-        role: userData.role ? userData.role.toLowerCase() : 'student', // Default to 'student' or appropriate default        jobTitle: userData.jobTitle,
+        avatar: userData.profileImageId,
+        role: userData.role ? userData.role.toLowerCase() : 'student',
+        jobTitle: userData.jobTitle,
         languagePreference: userData.languagePreference,
       };
       useAuthStore.getState().setAuth({
@@ -116,7 +117,7 @@ export default function LoginPage() {
       
       saveAuth(data, keepMeSignedIn ?? false);
       reset();
-      router.replace("/");
+      router.replace("/student");
     } catch (error) {
       setServerError("Something went wrong. Please try again.");
     }

@@ -149,129 +149,75 @@ export default function ExamQuestionsPage() {
     if (isClient) {
       checkAuthAndFetch();
     }
-  }, [isClient, router]);
+  }, [isClient, router, filters]);
 
   const fetchQuestions = async (token: string) => {
     try {
       setLoading(true);
       setError(null);
 
-      // Build query parameters based on filters
-      const params = new URLSearchParams();
-
-      if (filters.keywords) {
-        params.append('search', filters.keywords);
-      }
-
-      if (filters.subject && filters.subject !== "All Subject") {
-        params.append('subject', filters.subject);
-      }
-
-      if (filters.difficulty && filters.difficulty !== "Any Level") {
-        params.append('difficulty', filters.difficulty);
-      }
-
-      if (filters.questionTypes.length > 0) {
-        params.append('questionTypes', filters.questionTypes.join(','));
-      }
-
-      console.log("Fetching exam questions with params:", params.toString());
-
-      // Use mock data for now - replace with actual API when available
-      // const response = await fetch(`/api/exam-questions?${params.toString()}`, {
-      //   headers: {
-      //     'Authorization': `Bearer ${token}`,
-      //     'Content-Type': 'application/json',
-      //   },
-      // });
-
-      // const data = await response.json();
-
-      // if (!response.ok) {
-      //   if (response.status === 401) {
-      //     localStorage.removeItem(LocalStorageKeys.UserAuth);
-      //     setError("Your session has expired. Redirecting to login...");
-      //     setTimeout(() => {
-      //       router.push('/login?redirect=/student/exam-questions');
-      //     }, 2000);
-      //     return;
-      //   }
-      //   throw new Error(data.message || `Failed to fetch: ${response.status}`);
-      // }
-
-      // Mock data matching the image
-      const mockQuestions: ExamQuestion[] = [
+      // Demo data for exam questions
+      const demoQuestions: ExamQuestion[] = [
         {
           id: 1,
-          title: "Negligence and Duty of Care",
-          description: "Explain the 'Caparo Test' for establishing a duty of care. How has recent case law (e.g., Robinson v Chief Constable of West Yorkshire Police) modified the approach courts take when determining if a duty of care exists in novel situations?",
-          subject: "Tort Law",
-          difficulty: "Beginner",
-          estimatedTime: "30 mins",
+          title: "Contract Formation - Offer and Acceptance",
+          description: "Analyze the following scenario:\n\nSarah sends an email to John on Monday offering to sell her car for $10,000. John receives the email on Tuesday and replies by email accepting the offer on Wednesday. Sarah receives John's acceptance on Thursday.\n\nDiscuss when and if a contract was formed between Sarah and John, considering the postal rule and modern communication methods.",
+          subject: "Contract Law",
+          difficulty: "Intermediate",
+          estimatedTime: "15 min",
           questionType: ["Essay Questions"],
-          tags: ["negligence", "duty of care", "caparo test"],
-          modelAnswer: `The Caparo test, established in Caparo Industries plc v Dickman [1990], requires three elements for a duty of care: (1) foreseeability of harm, (2) proximity between parties, and (3) that imposing a duty is fair, just, and reasonable.
-
-Recent case law, particularly Robinson v Chief Constable of West Yorkshire Police [2018], has refined this approach by emphasizing that courts should not apply the Caparo test mechanistically in all novel situations. Instead, they should consider established categories of duty and develop the law incrementally rather than creating entirely new duties from scratch.`
+          modelAnswer: "A contract was formed when John sent his acceptance email on Wednesday. Under modern contract law principles, email communications are generally considered instantaneous for the purposes of offer and acceptance. The postal rule, which states that acceptance is effective upon posting, does not apply to electronic communications.\n\nKey points:\n1. The offer was effectively communicated when John received it on Tuesday\n2. John's acceptance was effective when sent on Wednesday (instantaneous communication rule)\n3. Sarah's receipt of acceptance on Thursday confirms contract formation\n4. The postal rule is limited to physical mail and does not extend to electronic communications\n\nTherefore, a binding contract was formed on Wednesday when John sent his acceptance email."
         },
         {
           id: 2,
-          title: "Offer and Acceptance in Digital Markets",
-          description: "Discuss the implications of the Carilli v Carbolic Smoke Ball Co ruling in the context of modern click-wrap agreements. How does the concept of unilateral contracts apply when the acceptor is an automated algorithm rather than a human agent?",
-          subject: "Contract Law",
-          difficulty: "Intermediate",
-          estimatedTime: "45 mins",
-          questionType: ["Essay Questions"],
-          tags: ["contract law", "offer and acceptance", "digital contracts"],
-          modelAnswer: `The Carilli v Carbolic Smoke Ball Co [1893] case established that a unilateral offer can be accepted by performing the required act, without need for communication of acceptance. In modern digital markets, click-wrap agreements operate on similar principles where acceptance occurs by clicking "I Agree."
-
-When automated algorithms are involved, the key question becomes whether the algorithm's actions can constitute acceptance. Courts generally consider whether the algorithm was programmed to act on behalf of a human principal and whether the terms were reasonably brought to the principal's attention.`
+          title: "Negligence - Duty of Care",
+          description: "Multiple Choice Question:\n\nA doctor fails to warn a patient about known side effects of a prescribed medication. The patient suffers severe allergic reaction. Which element of negligence is most clearly established?\n\nA) Duty of care\nB) Breach of duty\nC) Causation\nD) Damages",
+          subject: "Tort Law",
+          difficulty: "Beginner",
+          estimatedTime: "5 min",
+          questionType: ["Multiple Choice"],
+          modelAnswer: "The correct answer is B) Breach of duty.\n\nExplanation: The scenario clearly establishes that the doctor breached their duty by failing to warn about known side effects. While a duty of care exists in doctor-patient relationships (A), and damages occurred (D), the most clearly established element from the facts given is the breach of that duty. Causation would require additional facts about whether the failure to warn actually caused the allergic reaction."
         },
         {
           id: 3,
-          title: "Mens Rea and Intoxication",
-          description: `"A defendant who voluntarily becomes intoxicated cannot rely on that intoxication as a defence to a crime of basic intent." Critically analyse this statement with reference to DPP v Majewski. Does the current law strike a fair balance between public policy and individual culpability?`,
+          title: "Criminal Liability - Mens Rea",
+          description: "Case Study:\n\nEmma, aged 16, takes her father's car without permission to drive to a party. She believes she has the right to use the family car whenever needed. On the way, she runs a red light and causes an accident.\n\nDiscuss Emma's criminal liability, focusing on the mens rea requirement for theft and traffic violations.",
           subject: "Criminal Law",
+          difficulty: "Advanced",
+          estimatedTime: "20 min",
+          questionType: ["Case Studies"],
+          modelAnswer: "Emma likely lacks the mens rea for theft but may be liable for traffic violations.\n\nTheft Analysis:\n- The actus reus of theft (appropriation of property) is present\n- However, mens rea for theft requires intention to permanently deprive\n- Emma's honest belief that she had right to use the car negates dishonesty\n- R v. Gomez establishes that belief in right negates mens rea for theft\n\nTraffic Violations:\n- Strict liability offenses may not require mens rea\n- Running red light typically requires awareness of the traffic signal\n- Emma's awareness of the red light establishes mens rea for traffic violation\n\nConclusion: Not guilty of theft due to lack of mens rea, but potentially guilty of traffic violations."
+        },
+        {
+          id: 4,
+          title: "Property Rights - Adverse Possession",
+          description: "Essay Question:\n\nTom has been living in an abandoned house for 12 years, maintaining the property and paying property taxes. The original owner, Jerry, occasionally checks on the property but never objects to Tom's occupation.\n\nAnalyze whether Tom can claim adverse possession of the property under typical common law principles.",
+          subject: "Property Law",
           difficulty: "Hard",
-          estimatedTime: "60 mins",
+          estimatedTime: "25 min",
           questionType: ["Essay Questions"],
-          tags: ["criminal law", "mens rea", "intoxication"],
-          modelAnswer: `The rule in DPP v Majewski [1977] establishes that voluntary intoxication cannot negate mens rea for crimes of basic intent (such as assault or manslaughter) but may be relevant for specific intent crimes (such as murder). This reflects a policy choice prioritizing public protection over individual fault principles.
-
-Critics argue this creates a legal fiction by attributing intent where none existed. Supporters contend it serves deterrence and protects the public from intoxicated individuals. The current law arguably favors public policy at the expense of strict adherence to the principle of subjective mens rea.`
+          modelAnswer: "Tom likely cannot establish adverse possession due to Jerry's occasional presence and lack of true hostility.\n\nElements of Adverse Possession:\n1. Actual possession - ✓ (Tom lives there and maintains it)\n2. Open and notorious - ✓ (visible possession)\n3. Exclusive - ✗ (Jerry occasionally visits)\n4. Hostile/Adverse - ✗ (Jerry's permission implied by lack of objection)\n5. Continuous for statutory period - ✓ (12 years)\n\nKey Issues:\n- Jerry's occasional visits defeat exclusivity requirement\n- Lack of objection may imply permission, negating hostility\n- True adverse possession requires claim of right inconsistent with owner's rights\n\nConclusion: Tom cannot successfully claim adverse possession because the possession is not truly adverse or exclusive to the owner's rights."
+        },
+        {
+          id: 5,
+          title: "Constitutional Law - Freedom of Speech",
+          description: "Multiple Choice:\n\nWhich type of speech receives the highest level of First Amendment protection?\n\nA) Commercial speech\nB) Political speech\nC) Obscene material\nD) Fighting words",
+          subject: "Constitutional Law",
+          difficulty: "Beginner",
+          estimatedTime: "5 min",
+          questionType: ["Multiple Choice"],
+          modelAnswer: "B) Political speech\n\nThe Supreme Court has consistently held that political speech receives the highest level of First Amendment protection. This is based on the fundamental principle that free political discourse is essential to democracy.\n\nLevels of protection (highest to lowest):\n1. Political speech - strict scrutiny\n2. Artistic expression - substantial protection\n3. Commercial speech - intermediate scrutiny\n4. Obscene material - no protection (Miller test)\n5. Fighting words - no protection (Chaplinsky v. New Hampshire)"
         }
       ];
 
-      // Filter mock data based on filters
-      let filteredQuestions = mockQuestions;
-
-      if (filters.keywords) {
-        const searchLower = filters.keywords.toLowerCase();
-        filteredQuestions = filteredQuestions.filter(q =>
-          q.title.toLowerCase().includes(searchLower) ||
-          q.description.toLowerCase().includes(searchLower) ||
-          (q.tags && q.tags.some(tag => tag.toLowerCase().includes(searchLower)))
-        );
-      }
-
-      if (filters.subject && filters.subject !== "All Subject") {
-        filteredQuestions = filteredQuestions.filter(q => q.subject === filters.subject);
-      }
-
-      if (filters.difficulty && filters.difficulty !== "Any Level") {
-        filteredQuestions = filteredQuestions.filter(q => q.difficulty === filters.difficulty);
-      }
-
-      if (filters.questionTypes.length > 0) {
-        filteredQuestions = filteredQuestions.filter(q =>
-          q.questionType && filters.questionTypes.every(type => q.questionType?.includes(type))
-        );
-      }
-
-      setQuestions(filteredQuestions);
+      // Simulate API delay
+      setTimeout(() => {
+        setQuestions(demoQuestions);
+        setLoading(false);
+      }, 500);
 
     } catch (err) {
-      console.error("Error fetching exam questions:", err);
+      console.error("Error loading demo questions:", err);
       const errorMessage = err instanceof Error ? err.message : "Failed to load exam questions";
       setError(errorMessage);
       setQuestions([]);
@@ -579,7 +525,12 @@ Critics argue this creates a legal fiction by attributing intent where none exis
                         </div>
 
                         <h3 className="text-lg font-semibold text-slate-900 mb-3">
-                          {question.title}
+                          <a 
+                            href={`/student/exam-questions/${question.title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}`}
+                            className="hover:text-emerald-600 transition-colors"
+                          >
+                            {question.title}
+                          </a>
                         </h3>
 
                         <p className="text-slate-700 mb-6 leading-relaxed whitespace-pre-line">
