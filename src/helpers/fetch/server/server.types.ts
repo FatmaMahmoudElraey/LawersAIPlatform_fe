@@ -1,8 +1,12 @@
-import { IEntityFilter, IReadDto } from "@/helpers/dtos/pagination.dto";
-import { IErrorResponse } from "@/helpers/dtos/response.dto";
 import { HttpError } from "@/helpers/errors/exceptions/http.exception";
-import { MutationFunction } from "@tanstack/react-query";
+import {
+  MutationFunction,
+  QueryFunction,
+  QueryKey,
+} from "@tanstack/react-query";
 import { EntityAPIs } from "../axios/axios.entity";
+import { IErrorResponse } from "@/helpers/dtos/response.dto";
+import { IEntityFilter } from "@/helpers/dtos/pagination.dto";
 export interface ShowToastOptions {
   loadingMessage: string;
   loadingToast: boolean;
@@ -10,38 +14,22 @@ export interface ShowToastOptions {
   failedToast: boolean;
 }
 
-export type IUseOperationAPI = {
+export type IUseOperationAPI<TResponse> = {
   page: number;
   showToastOptions: ShowToastOptions;
   onCancelRequest?: () => void;
+  afterSuccess?: (entity: TResponse) => void;
+  afterFailed?: (error: HttpError<string | IErrorResponse>) => void;
 };
 
-export type IUseCreateAPI = {
-  page: number;
-  showToastOptions?: ShowToastOptions;
-  onCancelRequest?: () => void;
-};
-
-export type IUseUpdateAPI = {
-  page: number;
-  showToastOptions?: ShowToastOptions;
-  onCancelRequest?: () => void;
-};
-
-export type IUseDeleteAPI = {
-  page: number;
-  showToastOptions?: ShowToastOptions;
-  onCancelRequest?: () => void;
-};
-
-export type IUseGetAPI<T extends IReadDto> = {
-  infoPagination: IEntityFilter<T>;
+export type IUseGetAPI<IReadDto> = {
+  infoPagination: IEntityFilter<IReadDto>;
   isEnabled?: boolean;
   onCancelRequest?: () => void;
 };
 
-export type IUseInfiniteGetAPI<T extends IReadDto> = {
-  infoPagination: IEntityFilter<T>;
+export type IUseInfiniteGetAPI<IReadDto> = {
+  infoPagination: IEntityFilter<IReadDto>;
   isEnabled?: boolean;
   onCancelRequest?: () => void;
 };
@@ -49,24 +37,6 @@ export type IUseInfiniteGetAPI<T extends IReadDto> = {
 export type IUseGetOneAPI = {
   id: number;
   isEnabled: boolean;
-  onCancelRequest?: () => void;
-};
-
-export type IUseCreateManyAPI = {
-  page: number;
-  showToastOptions: ShowToastOptions;
-  onCancelRequest?: () => void;
-};
-
-export type IUseUpdateManyAPI = {
-  page: number;
-  showToastOptions: ShowToastOptions;
-  onCancelRequest?: () => void;
-};
-
-export type IUseDeleteManyAPI = {
-  page: number;
-  showToastOptions: ShowToastOptions;
   onCancelRequest?: () => void;
 };
 
@@ -82,9 +52,9 @@ export type IUseReorderAPI = {
 //   onCancelRequest?: () => void;
 // };
 
-export type TUseOperationAPI<T, U> = {
-  fetchAPI: MutationFunction<T, U>;
-  shadcnUiToast: any;
+export type TOperationAPI<T, U> = {
+  operationAPI: MutationFunction<T, U>;
+  // shadcnUiToast: any;
   successMessage: (entity: T) => string;
   showToastOptions?: ShowToastOptions;
   enableRequestCancellation?: boolean;
@@ -93,9 +63,26 @@ export type TUseOperationAPI<T, U> = {
   onCancelRequest?: () => void;
 };
 
-export type DecoupledCRUDFetch = {
+export type TGetOperationAPI<T> = {
+  queryKey: QueryKey;
+  queryAPI: QueryFunction<T[], QueryKey, never>;
+  isEnabled?: boolean;
+};
+
+export type TGetOneOperationAPI<T> = {
+  queryKey: QueryKey;
+  queryAPI: QueryFunction<T, QueryKey, never>;
+  isEnabled?: boolean;
+};
+
+export type DecoupledReadFetch<TResponse> = {
+  modelNameAsPlural: string;
+  queryFn: QueryFunction<TResponse, readonly unknown[], never>;
+};
+
+export type DecoupledCreateUpdateDeleteFetch<TResponse, TOperation> = {
   modelNameAsPlural: string;
   modelNameAsSingular: string;
-  entityAPIs: any;
+  mutationFn: MutationFunction<TResponse, TOperation>;
   enableRequestCancelation?: boolean;
 };
