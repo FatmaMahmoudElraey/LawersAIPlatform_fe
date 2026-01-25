@@ -8,10 +8,6 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import {
-  IErrorResponse,
-  IGetSuccessResponse,
-} from "@/helpers/dtos/response.dto";
 import { HttpError } from "@/helpers/errors/exceptions/http.exception";
 import {
   checkIfCashedData,
@@ -21,24 +17,24 @@ import {
 } from "./server.helper";
 import { toast } from "sonner";
 import {
-  DecoupledCRUDFetch,
-  IUseCreateAPI,
-  IUseCreateManyAPI,
-  IUseDeleteAPI,
-  IUseDeleteManyAPI,
-  IUseReorderAPI,
-  IUseUpdateAPI,
-  IUseUpdateManyAPI,
+  DecoupledCreateUpdateDeleteFetch,
+  DecoupledReadFetch,
+  IUseOperationAPI,
   ShowToastOptions,
-  TUseOperationAPI,
+  TGetOneOperationAPI,
+  TGetOperationAPI,
+  TOperationAPI,
 } from "./server.types";
 import { useToast } from "@/hooks/use-toast";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { IUserAuth } from "@/helpers/security/auth/user.auth";
 import { LocalStorageKeys } from "@/helpers/constants/local-storage.constant";
 import { TOrderAPI, TRestoreAPI, TUpdateAPI } from "../types/fetch.types";
-import { IEntityFilter, IReadDto } from "@/helpers/dtos/pagination.dto";
-import { isDecimalNumber } from "@/helpers/shared/numberOperations.shared";
+import {
+  IErrorResponse,
+  IGetSuccessResponse,
+} from "@/helpers/dtos/response.dto";
+import { IEntityFilter } from "@/helpers/dtos/pagination.dto";
 
 export const sharedShowToastOptions: ShowToastOptions = {
   loadingMessage: "Working Progress ...",
@@ -54,16 +50,18 @@ export function useCreateAPI<TCreateDto, TResponse>({
   showToastOptions = sharedShowToastOptions,
   onCancelRequest,
   metaInfo,
-}: IUseCreateAPI & { metaInfo: DecoupledCRUDFetch }) {
+  afterFailed,
+  afterSuccess,
+}: IUseOperationAPI<TResponse> & {
+  metaInfo: DecoupledCreateUpdateDeleteFetch<TResponse, TCreateDto>;
+}) {
   const {
-    entityAPIs,
+    mutationFn,
     modelNameAsPlural,
     enableRequestCancelation,
     modelNameAsSingular,
   } = metaInfo;
-  const [auth, _] = useLocalStorage<IUserAuth>(LocalStorageKeys.UserAuth);
   const queryClient = useQueryClient();
-  const { toast: shadcnUiToast } = useToast();
 
   let loadingToastId: number;
   const controller = new AbortController();
@@ -72,14 +70,7 @@ export function useCreateAPI<TCreateDto, TResponse>({
     HttpError<IErrorResponse | string>,
     TCreateDto
   >({
-    mutationFn: (entity) =>
-      entityAPIs.create({
-        entity,
-        token: auth.token,
-        ...(enableRequestCancelation && {
-          signal: controller.signal,
-        }),
-      }),
+    mutationFn: mutationFn,
     onSuccess: (createdEntity: TResponse, _, __) => {
       showToastOptions.loadingToast && toast.dismiss(loadingToastId);
       const cashedData = checkIfCashedData<TResponse>(
@@ -126,10 +117,13 @@ export function useCreateAPI<TCreateDto, TResponse>({
 
       showToastOptions.successToast &&
         successToast(`${modelNameAsSingular} has created successfully`);
+
+      if (afterSuccess) afterSuccess(createdEntity);
     },
     onError: (error, _, __) => {
       showToastOptions.loadingToast && toast.dismiss(loadingToastId);
-      showToastOptions.failedToast && errorToast(shadcnUiToast, error);
+      showToastOptions.failedToast && errorToast(error);
+      if (afterFailed) afterFailed(error);
     },
   });
 
@@ -153,31 +147,27 @@ export function useUpdateAPI<TUpdateDto, TResponse>({
   showToastOptions = sharedShowToastOptions,
   onCancelRequest,
   metaInfo,
-}: IUseUpdateAPI & { metaInfo: DecoupledCRUDFetch }) {
+  afterFailed,
+  afterSuccess,
+}: IUseOperationAPI<TResponse> & {
+  metaInfo: DecoupledCreateUpdateDeleteFetch<TResponse, TUpdateDto>;
+}) {
   const {
-    entityAPIs,
+    mutationFn,
     modelNameAsPlural,
     enableRequestCancelation,
     modelNameAsSingular,
   } = metaInfo;
-  const [auth, _] = useLocalStorage<IUserAuth>(LocalStorageKeys.UserAuth);
   const queryClient = useQueryClient();
-  const { toast: shadcnUiToast } = useToast();
 
   let loadingToastId: number;
   const controller = new AbortController();
   const mutation = useMutation<
     TResponse,
     HttpError<IErrorResponse | string>,
-    TUpdateAPI<TUpdateDto>
+    TUpdateDto
   >({
-    mutationFn: ({ entity, id }) =>
-      entityAPIs.update({
-        id,
-        entity,
-        token: auth.token,
-        ...(enableRequestCancelation && { signal: controller.signal }),
-      }),
+    mutationFn: mutationFn,
     onSuccess: (updatedEntity: TResponse, _, __) => {
       showToastOptions.loadingToast && toast.dismiss(loadingToastId);
       const cashedData = checkIfCashedData<TResponse>(
@@ -231,10 +221,12 @@ export function useUpdateAPI<TUpdateDto, TResponse>({
 
       showToastOptions.successToast &&
         successToast(`${modelNameAsSingular} has updated successfully`);
+      if (afterSuccess) afterSuccess(updatedEntity);
     },
     onError: (error, _, __) => {
       showToastOptions.loadingToast && toast.dismiss(loadingToastId);
-      showToastOptions.failedToast && errorToast(shadcnUiToast, error);
+      showToastOptions.failedToast && errorToast(error);
+      if (afterFailed) afterFailed(error);
     },
   });
 
@@ -258,17 +250,18 @@ export function useDeleteAPI<TResponse>({
   showToastOptions = sharedShowToastOptions,
   onCancelRequest,
   metaInfo,
-}: IUseDeleteAPI & { metaInfo: DecoupledCRUDFetch }) {
+  afterFailed,
+  afterSuccess,
+}: IUseOperationAPI<TResponse> & {
+  metaInfo: DecoupledCreateUpdateDeleteFetch<TResponse, number>;
+}) {
   const {
-    entityAPIs,
+    mutationFn,
     modelNameAsPlural,
     enableRequestCancelation,
     modelNameAsSingular,
   } = metaInfo;
-
-  const [auth, _] = useLocalStorage<IUserAuth>(LocalStorageKeys.UserAuth);
   const queryClient = useQueryClient();
-  const { toast: shadcnUiToast } = useToast();
 
   let loadingToastId: number;
   const controller = new AbortController();
@@ -277,12 +270,7 @@ export function useDeleteAPI<TResponse>({
     HttpError<IErrorResponse | string>,
     number
   >({
-    mutationFn: (id) =>
-      entityAPIs.delete({
-        id,
-        token: auth.token,
-        ...(enableRequestCancelation && { signal: controller.signal }),
-      }),
+    mutationFn: mutationFn,
     onSuccess: (deletedEntity: TResponse, _, __) => {
       showToastOptions.loadingToast && toast.dismiss(loadingToastId);
       const cashedData = checkIfCashedData<TResponse>(
@@ -332,21 +320,24 @@ export function useDeleteAPI<TResponse>({
 
       showToastOptions.successToast &&
         successToast(`${modelNameAsSingular} has deleted successfully`);
+
+      if (afterSuccess) afterSuccess(deletedEntity);
     },
     onError: (error, _, __) => {
       showToastOptions.failedToast && toast.dismiss(loadingToastId);
-      errorToast(shadcnUiToast, error);
+      showToastOptions.failedToast && errorToast(error);
+      if (afterFailed) afterFailed(error);
     },
   });
 
   if (mutation.isPending && showToastOptions.loadingToast)
     loadingToastId = loadingToast({
       message: showToastOptions.loadingMessage,
-      ...(onCancelRequest && {
+      ...(enableRequestCancelation && {
         buttonActionProps: {
           action: () => {
             controller.abort();
-            onCancelRequest();
+            if (onCancelRequest) onCancelRequest();
           },
         },
       }),
@@ -354,20 +345,14 @@ export function useDeleteAPI<TResponse>({
   return mutation;
 }
 
-export function useGet<TResponse, TReadDto extends IReadDto>(
+export function useGet<TReadDto, TResponse>(
   infoPagination: IEntityFilter<TReadDto>,
   isEnabled = true,
-  metaInfo: DecoupledCRUDFetch
+  metaInfo: DecoupledReadFetch<IGetSuccessResponse<TResponse>>
 ) {
-  const {
-    entityAPIs,
-    modelNameAsPlural,
-    modelNameAsSingular,
-    enableRequestCancelation,
-  } = metaInfo;
-  const [auth, _] = useLocalStorage<IUserAuth>(LocalStorageKeys.UserAuth);
+  const { queryFn, modelNameAsPlural } = metaInfo;
 
-  const page = infoPagination.pagination.page ?? 1;
+  const page = infoPagination?.pagination?.page ?? 1;
 
   const query = useQuery<
     IGetSuccessResponse<TResponse>,
@@ -378,30 +363,18 @@ export function useGet<TResponse, TReadDto extends IReadDto>(
       page,
       //  { ...infoPagination.filter }
     ],
-    queryFn: ({ signal }): any =>
-      entityAPIs.get({
-        options: infoPagination,
-        signal,
-        token: auth.token,
-      }) || [],
+    queryFn: queryFn,
     enabled: isEnabled,
   });
   return query;
 }
 
-export function useInfiniteGetAPI<TResponse, TReadDto extends IReadDto>(
+export function useInfiniteGetAPI<TReadDto, TResponse>(
   infoPagination: IEntityFilter<TReadDto>,
   isEnabled = true,
-  metaInfo: DecoupledCRUDFetch
+  metaInfo: DecoupledReadFetch<IGetSuccessResponse<TResponse>>
 ) {
-  const {
-    entityAPIs,
-    modelNameAsPlural,
-    modelNameAsSingular,
-    enableRequestCancelation,
-  } = metaInfo;
-  const [auth, _] = useLocalStorage<IUserAuth>(LocalStorageKeys.UserAuth);
-
+  const { queryFn, modelNameAsPlural } = metaInfo;
   const query = useInfiniteQuery<
     IGetSuccessResponse<TResponse>,
     HttpError<IErrorResponse | string>
@@ -410,23 +383,12 @@ export function useInfiniteGetAPI<TResponse, TReadDto extends IReadDto>(
       modelNameAsPlural,
       // { ...infoPagination.filter }
     ],
-    queryFn: async ({ pageParam, signal }) => {
-      infoPagination.pagination.page = pageParam as number;
-
-      const newEntities = await entityAPIs.get({
-        options: infoPagination,
-        signal,
-        token: auth.token,
-      });
-
-      return newEntities;
-    },
+    queryFn: queryFn as any,
     initialPageParam: 1,
     getNextPageParam: (lastPage) => {
-      let totalPages = lastPage.meta.count / infoPagination.pagination.limit;
-      totalPages = isDecimalNumber(totalPages)
-        ? Math.floor(totalPages) + 1
-        : totalPages;
+      let totalPages = lastPage.meta.count / infoPagination!.pagination!.limit!;
+      totalPages =
+        totalPages % 1 != 0 ? Math.floor(totalPages) + 1 : totalPages;
       const currentPage = lastPage!.meta?.page;
 
       currentPage < totalPages ? currentPage + 1 : null;
@@ -441,229 +403,229 @@ export function useInfiniteGetAPI<TResponse, TReadDto extends IReadDto>(
   return query;
 }
 
-export function useReorderAPI<TResponse>({
-  page = 0,
-  showToastOptions = sharedShowToastOptions,
-  onCancelRequest,
-  metaInfo,
-}: IUseReorderAPI & { metaInfo: DecoupledCRUDFetch }) {
-  const {
-    entityAPIs,
-    modelNameAsPlural,
-    modelNameAsSingular,
-    enableRequestCancelation,
-  } = metaInfo;
+// export function useReorderAPI<TResponse>({
+//   page = 0,
+//   showToastOptions = sharedShowToastOptions,
+//   onCancelRequest,
+//   metaInfo,
+// }: IUseReorderAPI & { metaInfo: DecoupledCRUDFetch }) {
+//   const {
+//     entityAPIs,
+//     modelNameAsPlural,
+//     modelNameAsSingular,
+//     enableRequestCancelation,
+//   } = metaInfo;
 
-  let loadingToastId: number;
-  const controller = new AbortController();
-  const queryClient = useQueryClient();
-  const shadcnUiToast = useToast();
-  const [auth, _] = useLocalStorage<IUserAuth>(LocalStorageKeys.UserAuth);
+//   let loadingToastId: number;
+//   const controller = new AbortController();
+//   const queryClient = useQueryClient();
+//   const shadcnUiToast = useToast();
+//   const [auth, _] = useLocalStorage<IUserAuth>(LocalStorageKeys.UserAuth);
 
-  const mutation = useMutation<
-    TResponse,
-    HttpError<IErrorResponse | string>,
-    TOrderAPI
-  >({
-    mutationFn: ({ id, order }) =>
-      entityAPIs.reorder({
-        id,
-        order,
-        token: auth.token,
-        ...(enableRequestCancelation && { signal: controller.signal }),
-      }),
-    onSuccess: (reorderedEntity: TResponse, _, __) => {
-      showToastOptions.loadingToast && toast.dismiss(loadingToastId);
+//   const mutation = useMutation<
+//     TResponse,
+//     HttpError<IErrorResponse | string>,
+//     TOrderAPI
+//   >({
+//     mutationFn: ({ id, order }) =>
+//       entityAPIs.reorder({
+//         id,
+//         order,
+//         token: auth.token,
+//         ...(enableRequestCancelation && { signal: controller.signal }),
+//       }),
+//     onSuccess: (reorderedEntity: TResponse, _, __) => {
+//       showToastOptions.loadingToast && toast.dismiss(loadingToastId);
 
-      const cashedData = checkIfCashedData<TResponse>(
-        queryClient,
-        modelNameAsPlural,
-        page
-      );
+//       const cashedData = checkIfCashedData<TResponse>(
+//         queryClient,
+//         modelNameAsPlural,
+//         page
+//       );
 
-      if (cashedData) {
-        queryClient.setQueryData(
-          page ? [modelNameAsPlural, page] : [modelNameAsPlural],
-          (
-            oldEntities?:
-              | IGetSuccessResponse<TResponse>
-              | {
-                  pageParams: number[];
-                  pages: IGetSuccessResponse<TResponse>[];
-                }
-          ) => {
-            if (typeof oldEntities === "undefined") return [];
+//       if (cashedData) {
+//         queryClient.setQueryData(
+//           page ? [modelNameAsPlural, page] : [modelNameAsPlural],
+//           (
+//             oldEntities?:
+//               | IGetSuccessResponse<TResponse>
+//               | {
+//                   pageParams: number[];
+//                   pages: IGetSuccessResponse<TResponse>[];
+//                 }
+//           ) => {
+//             if (typeof oldEntities === "undefined") return [];
 
-            let specificOldEntities;
-            if (page !== 0) {
-              specificOldEntities =
-                oldEntities as IGetSuccessResponse<TResponse>;
-              specificOldEntities.data = specificOldEntities.data.map(
-                (entity: any) =>
-                  entity.id === (reorderedEntity as any).id
-                    ? reorderedEntity
-                    : entity
-              );
-            } else {
-              specificOldEntities = oldEntities as {
-                pageParams: number[];
-                pages: IGetSuccessResponse<TResponse>[];
-              };
-              specificOldEntities?.pages.forEach((page) => {
-                page!.data =
-                  page?.data.map((entity: any) =>
-                    entity.id === (reorderedEntity as any).id
-                      ? reorderedEntity
-                      : entity
-                  ) || [];
-              });
-            }
+//             let specificOldEntities;
+//             if (page !== 0) {
+//               specificOldEntities =
+//                 oldEntities as IGetSuccessResponse<TResponse>;
+//               specificOldEntities.data = specificOldEntities.data.map(
+//                 (entity: any) =>
+//                   entity.id === (reorderedEntity as any).id
+//                     ? reorderedEntity
+//                     : entity
+//               );
+//             } else {
+//               specificOldEntities = oldEntities as {
+//                 pageParams: number[];
+//                 pages: IGetSuccessResponse<TResponse>[];
+//               };
+//               specificOldEntities?.pages.forEach((page) => {
+//                 page!.data =
+//                   page?.data.map((entity: any) =>
+//                     entity.id === (reorderedEntity as any).id
+//                       ? reorderedEntity
+//                       : entity
+//                   ) || [];
+//               });
+//             }
 
-            return specificOldEntities;
-          }
-        );
-      }
+//             return specificOldEntities;
+//           }
+//         );
+//       }
 
-      showToastOptions.successToast &&
-        successToast(`${modelNameAsSingular} has restored successfully`);
-    },
-    onError: (error, _, __) => {
-      showToastOptions.failedToast && toast.dismiss(loadingToastId);
-      errorToast(shadcnUiToast, error);
-    },
-  });
+//       showToastOptions.successToast &&
+//         successToast(`${modelNameAsSingular} has restored successfully`);
+//     },
+//     onError: (error, _, __) => {
+//       showToastOptions.failedToast && toast.dismiss(loadingToastId);
+//       errorToast(shadcnUiToast, error);
+//     },
+//   });
 
-  if (mutation.isPending && showToastOptions.loadingToast)
-    loadingToastId = loadingToast({
-      message: showToastOptions.loadingMessage,
-      ...(enableRequestCancelation && {
-        buttonActionProps: {
-          action: () => {
-            controller.abort();
-            if (onCancelRequest) onCancelRequest();
-          },
-        },
-      }),
-    });
-  return mutation;
-}
+//   if (mutation.isPending && showToastOptions.loadingToast)
+//     loadingToastId = loadingToast({
+//       message: showToastOptions.loadingMessage,
+//       ...(enableRequestCancelation && {
+//         buttonActionProps: {
+//           action: () => {
+//             controller.abort();
+//             if (onCancelRequest) onCancelRequest();
+//           },
+//         },
+//       }),
+//     });
+//   return mutation;
+// }
 
-export function useRestoreAPI<TResponse>({
-  page = 0,
-  showToastOptions = sharedShowToastOptions,
-  onCancelRequest,
-  metaInfo,
-}: IUseUpdateAPI & { metaInfo: DecoupledCRUDFetch }) {
-  const {
-    entityAPIs,
-    modelNameAsPlural,
-    modelNameAsSingular,
-    enableRequestCancelation,
-  } = metaInfo;
-  let loadingToastId: number;
-  const [auth, _] = useLocalStorage<IUserAuth>(LocalStorageKeys.UserAuth);
-  const queryClient = useQueryClient();
-  const shadcnUiToast = useToast();
-  const controller = new AbortController();
+// export function useRestoreAPI<TResponse>({
+//   page = 0,
+//   showToastOptions = sharedShowToastOptions,
+//   onCancelRequest,
+//   metaInfo,
+// }: IUseUpdateAPI & { metaInfo: DecoupledCRUDFetch }) {
+//   const {
+//     entityAPIs,
+//     modelNameAsPlural,
+//     modelNameAsSingular,
+//     enableRequestCancelation,
+//   } = metaInfo;
+//   let loadingToastId: number;
+//   const [auth, _] = useLocalStorage<IUserAuth>(LocalStorageKeys.UserAuth);
+//   const queryClient = useQueryClient();
+//   const shadcnUiToast = useToast();
+//   const controller = new AbortController();
 
-  const mutation = useMutation<
-    TResponse,
-    HttpError<IErrorResponse | string>,
-    TRestoreAPI
-  >({
-    mutationFn: ({ id }) =>
-      entityAPIs.restore({
-        id,
-        token: auth.token,
-        ...(enableRequestCancelation && { signal: controller.signal }),
-      }),
-    onSuccess: (restoredEntity: TResponse, _, __) => {
-      showToastOptions.loadingToast && toast.dismiss(loadingToastId);
-      const cashedData = checkIfCashedData<TResponse>(
-        queryClient,
-        modelNameAsPlural,
-        page
-      );
+//   const mutation = useMutation<
+//     TResponse,
+//     HttpError<IErrorResponse | string>,
+//     TRestoreAPI
+//   >({
+//     mutationFn: ({ id }) =>
+//       entityAPIs.restore({
+//         id,
+//         token: auth.token,
+//         ...(enableRequestCancelation && { signal: controller.signal }),
+//       }),
+//     onSuccess: (restoredEntity: TResponse, _, __) => {
+//       showToastOptions.loadingToast && toast.dismiss(loadingToastId);
+//       const cashedData = checkIfCashedData<TResponse>(
+//         queryClient,
+//         modelNameAsPlural,
+//         page
+//       );
 
-      if (cashedData) {
-        queryClient.setQueryData(
-          page ? [modelNameAsPlural, page] : [modelNameAsPlural],
-          (
-            oldEntities?:
-              | IGetSuccessResponse<TResponse>
-              | {
-                  pageParams: number[];
-                  pages: IGetSuccessResponse<TResponse>[];
-                }
-          ) => {
-            if (typeof oldEntities === "undefined") return [];
+//       if (cashedData) {
+//         queryClient.setQueryData(
+//           page ? [modelNameAsPlural, page] : [modelNameAsPlural],
+//           (
+//             oldEntities?:
+//               | IGetSuccessResponse<TResponse>
+//               | {
+//                   pageParams: number[];
+//                   pages: IGetSuccessResponse<TResponse>[];
+//                 }
+//           ) => {
+//             if (typeof oldEntities === "undefined") return [];
 
-            let specificOldEntities;
-            if (page !== 0) {
-              specificOldEntities =
-                oldEntities as IGetSuccessResponse<TResponse>;
-              specificOldEntities.data = specificOldEntities.data.map(
-                (entity: any) =>
-                  entity.id === (restoredEntity as any).id
-                    ? restoredEntity
-                    : entity
-              );
-            } else {
-              specificOldEntities = oldEntities as {
-                pageParams: number[];
-                pages: IGetSuccessResponse<TResponse>[];
-              };
-              specificOldEntities?.pages.forEach((page) => {
-                page!.data =
-                  page?.data.map((entity: any) =>
-                    entity.id === (restoredEntity as any).id
-                      ? restoredEntity
-                      : entity
-                  ) || [];
-              });
-            }
+//             let specificOldEntities;
+//             if (page !== 0) {
+//               specificOldEntities =
+//                 oldEntities as IGetSuccessResponse<TResponse>;
+//               specificOldEntities.data = specificOldEntities.data.map(
+//                 (entity: any) =>
+//                   entity.id === (restoredEntity as any).id
+//                     ? restoredEntity
+//                     : entity
+//               );
+//             } else {
+//               specificOldEntities = oldEntities as {
+//                 pageParams: number[];
+//                 pages: IGetSuccessResponse<TResponse>[];
+//               };
+//               specificOldEntities?.pages.forEach((page) => {
+//                 page!.data =
+//                   page?.data.map((entity: any) =>
+//                     entity.id === (restoredEntity as any).id
+//                       ? restoredEntity
+//                       : entity
+//                   ) || [];
+//               });
+//             }
 
-            return specificOldEntities;
-          }
-        );
-      }
+//             return specificOldEntities;
+//           }
+//         );
+//       }
 
-      showToastOptions.successToast &&
-        successToast(`${modelNameAsSingular} has restored successfully`);
-    },
-    onError: (error, _, __) => {
-      showToastOptions.loadingToast && toast.dismiss(loadingToastId);
-      showToastOptions.failedToast && errorToast(shadcnUiToast, error);
-    },
-  });
+//       showToastOptions.successToast &&
+//         successToast(`${modelNameAsSingular} has restored successfully`);
+//     },
+//     onError: (error, _, __) => {
+//       showToastOptions.loadingToast && toast.dismiss(loadingToastId);
+//       showToastOptions.failedToast && errorToast(shadcnUiToast, error);
+//     },
+//   });
 
-  if (mutation.isPending && showToastOptions.loadingToast)
-    loadingToastId = loadingToast({
-      message: showToastOptions.loadingMessage,
-      ...(enableRequestCancelation && {
-        buttonActionProps: {
-          action: () => {
-            controller.abort();
-            if (onCancelRequest) onCancelRequest();
-          },
-        },
-      }),
-    });
-  return mutation;
-}
+//   if (mutation.isPending && showToastOptions.loadingToast)
+//     loadingToastId = loadingToast({
+//       message: showToastOptions.loadingMessage,
+//       ...(enableRequestCancelation && {
+//         buttonActionProps: {
+//           action: () => {
+//             controller.abort();
+//             if (onCancelRequest) onCancelRequest();
+//           },
+//         },
+//       }),
+//     });
+//   return mutation;
+// }
 
 //#endregion
 
 export function useOperationAPI<IResponse, IOperationEntityDto>({
-  fetchAPI,
-  shadcnUiToast,
+  operationAPI,
+  // shadcnUiToast,
   showToastOptions = sharedShowToastOptions,
   successMessage,
   afterFailed,
   afterSuccess,
   enableRequestCancellation,
   onCancelRequest,
-}: TUseOperationAPI<IResponse, IOperationEntityDto>) {
+}: TOperationAPI<IResponse, IOperationEntityDto>) {
   let loadingToastId: number = 0;
   const controller = new AbortController();
   const mutation = useMutation<
@@ -671,7 +633,7 @@ export function useOperationAPI<IResponse, IOperationEntityDto>({
     HttpError<IErrorResponse | string>,
     IOperationEntityDto
   >({
-    mutationFn: fetchAPI,
+    mutationFn: operationAPI,
     onSuccess: (entity: IResponse, _, __) => {
       showToastOptions?.loadingToast && toast.dismiss(loadingToastId);
 
@@ -685,7 +647,7 @@ export function useOperationAPI<IResponse, IOperationEntityDto>({
       if (!!afterFailed) {
         afterFailed(error);
       }
-      showToastOptions?.failedToast && errorToast(shadcnUiToast, error);
+      showToastOptions?.failedToast && errorToast(error);
     },
   });
 
@@ -706,11 +668,6 @@ export function useOperationAPI<IResponse, IOperationEntityDto>({
   return mutation;
 }
 
-type TGetOperationAPI<T> = {
-  queryKey: QueryKey;
-  queryAPI: QueryFunction<T[], QueryKey, never>;
-  isEnabled?: boolean;
-};
 export function useGetOperationAPI<TResponse>({
   queryKey,
   queryAPI,
@@ -725,11 +682,6 @@ export function useGetOperationAPI<TResponse>({
   return query;
 }
 
-type TGetOneOperationAPI<T> = {
-  queryKey: QueryKey;
-  queryAPI: QueryFunction<T, QueryKey, never>;
-  isEnabled?: boolean;
-};
 export function useGetOneOperationAPI<TResponse>({
   queryKey,
   queryAPI,
