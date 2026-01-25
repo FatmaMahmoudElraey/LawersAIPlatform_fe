@@ -20,19 +20,16 @@ export function errorValidationInputToast(shadcnUiToast: any, err: any) {
   });
 }
 
-export function errorToast(
-  shadcnUiToast: any,
-  err: HttpError<IErrorResponse | string> | null
-) {
+export function errorToast(err: HttpError<IErrorResponse | string> | null) {
   if (!!err) {
     const isValidationError =
       typeof err.fullMessage !== "string" &&
       Array.isArray(err.fullMessage.message);
-    isValidationError &&
-      errorValidationInputToast(
-        shadcnUiToast,
-        (err.fullMessage as IErrorResponse).message
-      );
+    // isValidationError &&
+    //   errorValidationInputToast(
+    //     shadcnUiToast,
+    //     (err.fullMessage as IErrorResponse).message
+    //   );
 
     const showErrorMessage = () => {
       if (isValidationError) {
